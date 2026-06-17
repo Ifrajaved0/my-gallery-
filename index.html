@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Gallery</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: sans-serif;
+    background: #f5f5f5;
+    padding: 20px;
+    text-align: center;
+  }
+
+  h1 { font-size: 24px; margin-bottom: 20px; color: #222; }
+
+  /* Filter buttons */
+  .filters {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .filters button {
+    padding: 7px 18px;
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filters button:hover { background: #eee; }
+
+  .filters button.active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    max-width: 900px;
+    margin: 0 auto 30px;
+  }
+
+  .grid img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  .grid img:hover { transform: scale(1.04); opacity: 0.85; }
+
+  .no-results {
+    grid-column: 1/-1;
+    color: #999;
+    font-size: 15px;
+    padding: 2rem 0;
+  }
+
+  /* Lightbox */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .lightbox.open { display: flex; }
+
+  .lb-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    max-width: 560px;
+    width: 90%;
+    text-align: center;
+  }
+
+  .lb-box img {
+    width: 100%;
+    border-radius: 8px;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    transition: filter 0.3s;
+  }
+
+  .lb-box img.blurred { filter: blur(5px); }
+
+  .lb-title { font-size: 15px; font-weight: 500; color: #333; margin: 10px 0 4px; }
+  .lb-cat   { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+  .lb-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 8px 20px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  button:hover { background: #f0f0f0; }
+
+  .btn-close { background: #222; color: #fff; border-color: #222; }
+  .btn-close:hover { background: #444; }
+  .btn-blur.on { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+
+  .counter { font-size: 13px; color: #888; min-width: 55px; }
+</style>
+</head>
+<body>
+
+<h1>Image Gallery</h1>
+
+<div class="filters" id="filters"></div>
+<div class="grid" id="grid"></div>
+
+<div class="lightbox" id="lb">
+  <div class="lb-box">
+    <img id="lbImg" src="" alt="">
+    <div class="lb-title" id="lbTitle"></div>
+    <div class="lb-cat" id="lbCat"></div>
+    <div class="lb-controls">
+      <button id="prevBtn">&#8592; Prev</button>
+      <span class="counter" id="counter"></span>
+      <button id="nextBtn">Next &#8594;</button>
+      <button class="btn-blur" id="blurBtn">Blur</button>
+      <button class="btn-close" id="closeBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const images = [
+    { src: "https://picsum.photos/seed/10/600/400",  title: "Forest Dawn",     cat: "Nature" },
+    { src: "https://picsum.photos/seed/50/600/400",  title: "Coastal Cliffs",  cat: "Nature" },
+    { src: "https://picsum.photos/seed/90/600/400",  title: "Misty Mountains", cat: "Nature" },
+    { src: "https://picsum.photos/seed/150/600/400", title: "Old Harbour",     cat: "Nature" },
+    { src: "https://picsum.photos/seed/190/600/400", title: "Lavender Field",  cat: "Nature" },
+    { src: "https://picsum.photos/seed/140/600/400", title: "Snowy Peaks",     cat: "Nature" },
+    { src: "https://picsum.photos/seed/180/600/400", title: "Ocean Sunrise",   cat: "Nature" },
+    { src: "https://picsum.photos/seed/20/600/400",  title: "Glass Tower",     cat: "Architecture" },
+    { src: "https://picsum.photos/seed/60/600/400",  title: "Brick Arches",    cat: "Architecture" },
+    { src: "https://picsum.photos/seed/100/600/400", title: "Marble Hall",     cat: "Architecture" },
+    { src: "https://picsum.photos/seed/160/600/400", title: "Autumn Path",     cat: "Architecture" },
+    { src: "https://picsum.photos/seed/170/600/400", title: "City Lights",     cat: "Architecture" },
+    { src: "https://picsum.photos/seed/30/600/400",  title: "Market Crowd",    cat: "People" },
+    { src: "https://picsum.photos/seed/70/600/400",  title: "Street Portrait", cat: "People" },
+    { src: "https://picsum.photos/seed/110/600/400", title: "Joyful Reunion",  cat: "People" },
+    { src: "https://picsum.photos/seed/200/600/400", title: "Rainy Street",    cat: "People" },
+    { src: "https://picsum.photos/seed/40/600/400",  title: "Colour Wash",     cat: "Abstract" },
+    { src: "https://picsum.photos/seed/80/600/400",  title: "Fluid Forms",     cat: "Abstract" },
+    { src: "https://picsum.photos/seed/120/600/400", title: "Neon Geometry",   cat: "Abstract" },
+    { src: "https://picsum.photos/seed/130/600/400", title: "Desert Road",     cat: "Abstract" },
+  ];
+
+  let activeFilter = "All";
+  let filtered = [...images];
+  let current = 0;
+  let blurOn = false;
+
+  const lb      = document.getElementById("lb");
+  const lbImg   = document.getElementById("lbImg");
+  const lbTitle = document.getElementById("lbTitle");
+  const lbCat   = document.getElementById("lbCat");
+  const counter = document.getElementById("counter");
+  const blurBtn = document.getElementById("blurBtn");
+  const grid    = document.getElementById("grid");
+
+  // Build filter buttons
+  const cats = ["All", "Nature", "Architecture", "People", "Abstract"];
+  const filterBar = document.getElementById("filters");
+  cats.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.textContent = cat;
+    if (cat === "All") btn.classList.add("active");
+    btn.addEventListener("click", () => {
+      activeFilter = cat;
+      document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderGrid();
+    });
+    filterBar.appendChild(btn);
+  });
+
+  function renderGrid() {
+    filtered = activeFilter === "All" ? [...images] : images.filter(img => img.cat === activeFilter);
+    grid.innerHTML = "";
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="no-results">No images found.</div>';
+      return;
+    }
+    filtered.forEach((img, i) => {
+      const el = document.createElement("img");
+      el.src = img.src;
+      el.alt = img.title;
+      el.addEventListener("click", () => openLb(i));
+      grid.appendChild(el);
+    });
+  }
+
+  function openLb(i) {
+    current = i;
+    blurOn = false;
+    blurBtn.classList.remove("on");
+    show();
+    lb.classList.add("open");
+  }
+
+  function show() {
+    const img = filtered[current];
+    lbImg.src = img.src;
+    lbImg.alt = img.title;
+    lbTitle.textContent = img.title;
+    lbCat.textContent = img.cat;
+    counter.textContent = (current + 1) + " / " + filtered.length;
+    lbImg.classList.toggle("blurred", blurOn);
+  }
+
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    current = (current - 1 + filtered.length) % filtered.length;
+    show();
+  });
+
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    current = (current + 1) % filtered.length;
+    show();
+  });
+
+  blurBtn.addEventListener("click", () => {
+    blurOn = !blurOn;
+    blurBtn.classList.toggle("on", blurOn);
+    lbImg.classList.toggle("blurred", blurOn);
+  });
+
+  document.getElementById("closeBtn").addEventListener("click", () => lb.classList.remove("open"));
+
+  lb.addEventListener("click", e => { if (e.target === lb) lb.classList.remove("open"); });
+
+  document.addEventListener("keydown", e => {
+    if (!lb.classList.contains("open")) return;
+    if (e.key === "ArrowLeft")  { current = (current - 1 + filtered.length) % filtered.length; show(); }
+    if (e.key === "ArrowRight") { current = (current + 1) % filtered.length; show(); }
+    if (e.key === "Escape") lb.classList.remove("open");
+  });
+
+  renderGrid();
+</script>
+
+</body>
+</html>
